@@ -10,3 +10,5 @@ out/
 TestResults/
 *.binlog
 artifacts/
+publish/
+installer/Output/

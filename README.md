@@ -2,7 +2,7 @@
 
 A modern GNTP listener that bridges Growl-protocol notifications to native Windows 10/11 toast notifications.
 
-[Growl for Windows](https://www.growlforwindows.com/) was last released in 2011 and no longer runs cleanly on modern Windows. WinGrowl is a clean-room re-implementation: same on-the-wire protocol so existing Growl clients (Firestorm, Pidgin, Foobar2000, anything that speaks GNTP/1.0) work without modification, but the receiving end is a small .NET 8 tray app that renders notifications through the native Windows toast system instead of GfW's custom display layer.
+[Growl for Windows](https://www.growlforwindows.com/) was last released in 2011 and no longer runs cleanly on modern Windows. WinGrowl is a clean-room re-implementation: same on-the-wire protocol so existing Growl clients (Firestorm, Pidgin, Foobar2000, anything that speaks GNTP/1.0) work without modification, but the receiving end is a small .NET 10 tray app that renders notifications through the native Windows toast system instead of GfW's custom display layer.
 
 ## Status
 
@@ -29,7 +29,7 @@ Download `WinGrowl-<version>-Setup.exe` from the [Releases page](https://github.
 
 ### Portable
 
-Download `WinGrowl.exe` (self-contained single file, ~94 MB — bundles the .NET 8 runtime so no separate install is needed) and run it from anywhere. Toast notifications may be less reliable in portable mode without the AUMID registration the installer provides; if you don't see toasts, install via the installer.
+Download `WinGrowl.exe` (self-contained single file — bundles the .NET 10 runtime so no separate install is needed) and run it from anywhere. Toast notifications may be less reliable in portable mode without the AUMID registration the installer provides; if you don't see toasts, install via the installer.
 
 ## Configure your client
 
@@ -59,12 +59,12 @@ WinGrowl reads `%APPDATA%\WinGrowl\config.json` on startup. Defaults are sensibl
 
 ## Build from source
 
-Requirements: .NET 8 SDK, Windows 10 build 19041 (May 2020 update) or newer.
+Requirements: .NET 10 SDK, Windows 10 build 19041 (May 2020 update) or newer.
 
 ```powershell
 dotnet build WinGrowl.sln                  # debug build into bin/Debug
 tools\publish.ps1                          # self-contained single-file release into publish\win-x64
-tools\build-installer.ps1                  # publish + Inno Setup installer (requires Inno Setup 6+)
+tools\build-installer.ps1                  # publish + Inno Setup installer (requires Inno Setup 6 or 7)
 ```
 
 Inno Setup is the only external dependency for building the installer. Download from https://jrsoftware.org/isdl.php (one-time).

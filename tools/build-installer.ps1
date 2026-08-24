@@ -23,17 +23,21 @@ if ($LASTEXITCODE -ne 0) {
     throw "Publish step failed."
 }
 
-# Step 2: find Inno Setup's compiler. Standard install path first;
-# fall back to PATH lookup.
-$iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-if (-not (Test-Path $iscc)) {
-    $iscc = "C:\Program Files\Inno Setup 6\ISCC.exe"
-}
-if (-not (Test-Path $iscc)) {
+# Step 2: find Inno Setup's compiler. Check current and legacy standard
+# install paths first, then fall back to PATH lookup.
+$isccCandidates = @(
+    "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe",
+    "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+    "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+)
+$iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $iscc) {
     $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
     if ($cmd) { $iscc = $cmd.Source }
 }
-if (-not (Test-Path $iscc)) {
+if (-not $iscc -or -not (Test-Path $iscc)) {
     Write-Host ""
     Write-Host "ERROR: Inno Setup compiler (ISCC.exe) not found." -ForegroundColor Red
     Write-Host "Install from https://jrsoftware.org/isdl.php and re-run."
