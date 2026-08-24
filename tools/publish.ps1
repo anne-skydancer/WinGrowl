@@ -4,11 +4,10 @@ param(
     [string]$OutputDir = ""
 )
 
-# Build a self-contained, single-file Windows publish of WinGrowl.
+# Build a self-contained Windows publish of WinGrowl.
 #
-# - Self-contained: bundles the .NET 8 runtime, no user-side install required.
-# - Single-file: all DLLs packed into one WinGrowl.exe (native deps still
-#   extracted at runtime via IncludeNativeLibrariesForSelfExtract).
+# - Self-contained: bundles the .NET 10 and Windows App SDK runtimes,
+#   no user-side install required.
 # - PublishReadyToRun: AOT pre-jits to trim cold-start time.
 #
 # Output: <repo>\publish\<runtime>\ by default.
@@ -32,9 +31,6 @@ Write-Host "Publishing WinGrowl ($Configuration, $Runtime) to $OutputDir"
     -c $Configuration `
     -r $Runtime `
     --self-contained true `
-    -p:PublishSingleFile=true `
-    -p:IncludeNativeLibrariesForSelfExtract=true `
-    -p:EnableCompressionInSingleFile=true `
     -p:PublishReadyToRun=true `
     -p:DebugType=embedded `
     -o $OutputDir

@@ -37,30 +37,37 @@ public static class Program
         // background thread — P/Invoke and process enumeration don't
         // need UI marshaling. Register() wires up the COM activator that
         // lets Windows deliver activation to a running instance.
-        AppNotificationManager.Default.NotificationInvoked += (_, args) =>
+        try
         {
-            try
+            AppNotificationManager.Default.NotificationInvoked += (_, args) =>
             {
-                bool focused = false;
-                string route = "<none>";
-                if (args.Arguments.TryGetValue("senderPid", out var pidStr)
-                    && int.TryParse(pidStr, out var pid) && pid > 0)
+                try
                 {
-                    focused = WindowActivator.FocusByPid(pid);
-                    route = $"pid={pid}";
+                    bool focused = false;
+                    string route = "<none>";
+                    if (args.Arguments.TryGetValue("senderPid", out var pidStr)
+                        && int.TryParse(pidStr, out var pid) && pid > 0)
+                    {
+                        focused = WindowActivator.FocusByPid(pid);
+                        route = $"pid={pid}";
+                    }
+                    if (!focused
+                        && args.Arguments.TryGetValue("applicationName", out var appName)
+                        && !string.IsNullOrEmpty(appName))
+                    {
+                        focused = WindowActivator.FocusByApplicationName(appName);
+                        route = route == "<none>" ? $"name='{appName}'" : route + $" fallback-name='{appName}'";
+                    }
+                    log.Write($"toast-click route={route} focused={focused}");
                 }
-                if (!focused
-                    && args.Arguments.TryGetValue("applicationName", out var appName)
-                    && !string.IsNullOrEmpty(appName))
-                {
-                    focused = WindowActivator.FocusByApplicationName(appName);
-                    route = route == "<none>" ? $"name='{appName}'" : route + $" fallback-name='{appName}'";
-                }
-                log.Write($"toast-click route={route} focused={focused}");
-            }
-            catch (Exception ex) { log.Write($"toast-click-error: {ex.Message}"); }
-        };
-        AppNotificationManager.Default.Register();
+                catch (Exception ex) { log.Write($"toast-click-error: {ex.Message}"); }
+            };
+            AppNotificationManager.Default.Register();
+        }
+        catch (Exception ex)
+        {
+            log.Write($"toast-activation-unavailable: {ex.Message}");
+        }
 
         server.Diagnostic += msg => log.Write(msg);
         server.Registered += (_, r) => log.Write($"REGISTER app='{r.ApplicationName}' types={r.Types.Count}");

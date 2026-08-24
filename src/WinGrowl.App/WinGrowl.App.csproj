@@ -10,6 +10,7 @@
     <LangVersion>latest</LangVersion>
     <RootNamespace>WinGrowl.App</RootNamespace>
     <AssemblyName>WinGrowl</AssemblyName>
+    <DefaultLanguage>en-US</DefaultLanguage>
     <ApplicationIcon Condition="Exists('Assets\wingrowl.ico')">Assets\wingrowl.ico</ApplicationIcon>
     <StartupObject>WinGrowl.App.Program</StartupObject>
     <EnableDefaultApplicationDefinition>false</EnableDefaultApplicationDefinition>
@@ -19,6 +20,7 @@
          distributed as a single-file self-contained exe via Inno installer,
          so the unpackaged path is the only one that applies. -->
     <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <!-- Required by Microsoft.WindowsAppSDK.SingleFile.targets so the
          embedded resources.pri gets generated during PublishSingleFile.
          Misleading name: this is not about MSIX packaging (we set

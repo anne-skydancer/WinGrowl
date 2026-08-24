@@ -29,7 +29,7 @@ Download `WinGrowl-<version>-Setup.exe` from the [Releases page](https://github.
 
 ### Portable
 
-Download `WinGrowl.exe` (self-contained single file — bundles the .NET 10 runtime so no separate install is needed) and run it from anywhere. Toast notifications may be less reliable in portable mode without the AUMID registration the installer provides; if you don't see toasts, install via the installer.
+Download and extract the portable archive, then run `WinGrowl.exe`. The app directory bundles the .NET 10 and Windows App SDK runtimes, so no separate runtime install is needed. Toast notifications may be less reliable in portable mode without the AUMID registration the installer provides; if you don't see toasts, install via the installer.
 
 ## Configure your client
 
@@ -63,7 +63,7 @@ Requirements: .NET 10 SDK, Windows 10 build 19041 (May 2020 update) or newer.
 
 ```powershell
 dotnet build WinGrowl.sln                  # debug build into bin/Debug
-tools\publish.ps1                          # self-contained single-file release into publish\win-x64
+tools\publish.ps1                          # self-contained release into publish\win-x64
 tools\build-installer.ps1                  # publish + Inno Setup installer (requires Inno Setup 6 or 7)
 ```
 
