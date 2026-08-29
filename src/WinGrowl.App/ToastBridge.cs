@@ -1,6 +1,5 @@
 using System.IO;
-using Microsoft.Windows.AppNotifications;
-using Microsoft.Windows.AppNotifications.Builder;
+using Microsoft.Toolkit.Uwp.Notifications;
 using WinGrowl.Core.Gntp.Messages;
 
 namespace WinGrowl.App;
@@ -17,27 +16,19 @@ public sealed class ToastBridge
 
     public void Show(NotifyMessage n, int? senderPid = null)
     {
-        // WinAppSDK 2.x AppNotificationBuilder. Replaces the deprecated
-        // Microsoft.Toolkit.Uwp.Notifications ToastContentBuilder path.
-        // Builds the same underlying toast XML schema, but routed via
-        // AppNotificationManager.Default which auto-registers the COM
-        // activator needed for click handling in unpackaged apps.
-        var builder = new AppNotificationBuilder()
+        var builder = new ToastContentBuilder()
             .AddText(n.Title)
             .AddText(n.Text);
 
         if (!string.IsNullOrEmpty(n.ApplicationName))
         {
-            // No first-class attribution helper in AppNotificationBuilder;
-            // a third AddText reads as a small line under the message,
-            // close enough to GfW's source-app footer.
-            builder.AddText(n.ApplicationName);
+            builder.AddAttributionText(n.ApplicationName);
         }
 
-        var iconUri = ResolveIcon(n);
-        if (iconUri is not null)
+        var iconPath = ResolveIcon(n);
+        if (iconPath is not null)
         {
-            try { builder.SetAppLogoOverride(iconUri, AppNotificationImageCrop.Default); } catch { }
+            try { builder.AddAppLogoOverride(new Uri(iconPath), ToastGenericAppLogoCrop.Default); } catch { }
         }
 
         if (!string.IsNullOrEmpty(n.NotificationId))
@@ -56,20 +47,14 @@ public sealed class ToastBridge
             builder.AddArgument("senderPid", pid.ToString());
         }
 
-        var notification = builder.BuildNotification();
-        notification.Tag = n.NotificationId ?? Guid.NewGuid().ToString("N");
-        notification.Group = n.ApplicationName ?? string.Empty;
-        // No Expiration: that property controls how long the notification
-        // stays in Action Center after first showing, not the banner
-        // duration (banner duration is the user's system setting).
-        // Setting it to a few seconds, as earlier versions did, deleted
-        // the notification from Action Center seconds after it appeared
-        // — meaning nothing the user actually wanted to review later
-        // was findable. Let Windows apply its default retention.
-        AppNotificationManager.Default.Show(notification);
+        builder.Show(toast =>
+        {
+            toast.Tag = n.NotificationId ?? Guid.NewGuid().ToString("N");
+            toast.Group = n.ApplicationName;
+        });
     }
 
-    private Uri? ResolveIcon(NotifyMessage n)
+    private string? ResolveIcon(NotifyMessage n)
     {
         if (n.Icon is { } binary)
         {
@@ -79,12 +64,12 @@ public sealed class ToastBridge
             {
                 try { File.WriteAllBytes(path, binary.Data); } catch { return null; }
             }
-            return new Uri(path);
+            return path;
         }
         if (!string.IsNullOrEmpty(n.IconValue) && Uri.TryCreate(n.IconValue, UriKind.Absolute, out var u) &&
             (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps))
         {
-            return u;
+            return u.AbsoluteUri;
         }
         return null;
     }

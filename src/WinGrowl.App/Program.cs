@@ -1,5 +1,5 @@
 using System.Windows.Forms;
-using Microsoft.Windows.AppNotifications;
+using Microsoft.Toolkit.Uwp.Notifications;
 using WinGrowl.Core.Gntp;
 using WinGrowl.Core.Registration;
 
@@ -28,61 +28,46 @@ public static class Program
         var syncCtx = new WindowsFormsSynchronizationContext();
         SynchronizationContext.SetSynchronizationContext(syncCtx);
 
-        // Route toast clicks back to the sending app's window. Prefer the
-        // 'senderPid' arg (resolved from the GNTP TCP connection at
-        // notify-time) — that's the only way to disambiguate between
-        // multiple instances of the same exe (e.g. two Firestorms). Fall
-        // back to the historical name-prefix match if PID is missing or
-        // the process has since exited. NotificationInvoked fires on a
-        // background thread — P/Invoke and process enumeration don't
-        // need UI marshaling. Register() wires up the COM activator that
-        // lets Windows deliver activation to a running instance.
-        try
+        // ToastNotificationManagerCompat supplies the unpackaged COM activation
+        // registration without depending on the Windows App SDK Singleton MSIX.
+        ToastNotificationManagerCompat.OnActivated += args =>
         {
-            AppNotificationManager.Default.NotificationInvoked += (_, args) =>
+            try
             {
-                try
+                var parsed = ToastArguments.Parse(args.Argument);
+                bool focused = false;
+                string route = "<none>";
+                if (parsed.TryGetValue("senderPid", out var pidString)
+                    && int.TryParse(pidString, out var pid) && pid > 0)
                 {
-                    bool focused = false;
-                    string route = "<none>";
-                    if (args.Arguments.TryGetValue("senderPid", out var pidStr)
-                        && int.TryParse(pidStr, out var pid) && pid > 0)
-                    {
-                        focused = WindowActivator.FocusByPid(pid);
-                        route = $"pid={pid}";
-                    }
-                    if (!focused
-                        && args.Arguments.TryGetValue("applicationName", out var appName)
-                        && !string.IsNullOrEmpty(appName))
-                    {
-                        focused = WindowActivator.FocusByApplicationName(appName);
-                        route = route == "<none>" ? $"name='{appName}'" : route + $" fallback-name='{appName}'";
-                    }
-                    log.Write($"toast-click route={route} focused={focused}");
+                    focused = WindowActivator.FocusByPid(pid);
+                    route = $"pid={pid}";
                 }
-                catch (Exception ex) { log.Write($"toast-click-error: {ex.Message}"); }
-            };
-            AppNotificationManager.Default.Register();
-        }
-        catch (Exception ex)
-        {
-            log.Write($"toast-activation-unavailable: {ex.Message}");
-        }
+                if (!focused
+                    && parsed.TryGetValue("applicationName", out var appName)
+                    && !string.IsNullOrEmpty(appName))
+                {
+                    focused = WindowActivator.FocusByApplicationName(appName);
+                    route = route == "<none>" ? $"name='{appName}'" : route + $" fallback-name='{appName}'";
+                }
+                log.Write($"toast-click route={route} focused={focused}");
+            }
+            catch (Exception ex) { log.Write($"toast-click-error: {ex.Message}"); }
+        };
 
         server.Diagnostic += msg => log.Write(msg);
         server.Registered += (_, r) => log.Write($"REGISTER app='{r.ApplicationName}' types={r.Types.Count}");
         server.Notification += (_, n) =>
         {
-            // PID is resolved per-NOTIFY only so toast click-back can
-            // focus the exact sender instance (e.g. background Firestorm
-            // vs foreground Firestorm). No foreground-suppression gate:
-            // if the source app sends a NOTIFY, the user has already
-            // opted in via that app's own "notify even when focused"
-            // preference — WinGrowl second-guessing that is wrong.
+            // Resolve the exact sender instance both for click-back and to
+            // avoid duplicating the source application's foreground alert.
             int? senderPid = n.SenderEndPoint is { } ep
                 ? TcpPidResolver.ResolvePid(ep, serverOptions.Endpoint.Port)
                 : null;
             string pidTag = senderPid is int p ? $"pid={p}" : "pid=?";
+            bool senderIsForeground = senderPid is int resolvedPid
+                ? ForegroundProbe.IsProcessForeground(resolvedPid)
+                : ForegroundProbe.IsApplicationForeground(n.ApplicationName);
             // Snippet of Notification-Text so we can see what the source
             // app actually shipped — needed to debug "body missing" /
             // "type not arriving" reports against real GNTP traffic.
@@ -91,8 +76,13 @@ public static class Program
                 ? "<null>"
                 : (n.Text.Length <= 80 ? n.Text : n.Text.Substring(0, 80) + "...");
             textSnippet = textSnippet.Replace("\r", "\\r").Replace("\n", "\\n");
-            log.Write($"NOTIFY app='{n.ApplicationName}' name='{n.NotificationName}' title='{n.Title}' text-len={textLen} text='{textSnippet}' {pidTag}");
+            log.Write($"NOTIFY app='{n.ApplicationName}' name='{n.NotificationName}' title='{n.Title}' text-len={textLen} text='{textSnippet}' {pidTag} senderIsForeground={senderIsForeground}");
             if (!config.ShowToasts) return;
+            if (senderIsForeground)
+            {
+                log.Write($"toast-skipped sender-foreground app='{n.ApplicationName}' name='{n.NotificationName}' {pidTag}");
+                return;
+            }
             syncCtx.Post(_ =>
             {
                 try
